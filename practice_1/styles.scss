@@ -1,0 +1,37 @@
+body {
+  background: #807c7c;
+}
+
+$card-bg-color: #000000;
+$text-color: #ffffff;
+
+@mixin card-creator($bg-color) {
+  width: 300px;
+  height: 300px;
+  background: $bg-color;
+}
+
+@mixin name($t-color) {
+  color: $t-color;
+}
+@mixin description($t-color) {
+  color: $t-color;
+}
+@mixin picture-size() {
+  max-width: 200px;
+  max-height: 200px;
+}
+
+
+.card {
+  @include card-creator($card-bg-color);
+}
+.card p {
+  @include description($text-color);
+}
+.card h2 {
+  @include name($text-color);
+}
+.card img {
+  @include picture-size();
+}
