@@ -4,6 +4,11 @@ const express = require('express');
 const { nanoid } = require('nanoid');
 const cors = require('cors');
 
+// Подключаем Swagger
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+
+
 const app = express();
 const port = 3000;
 
@@ -47,6 +52,77 @@ let products = [
     }
 ];
 
+// Swagger definition
+// Описание основного API
+const swaggerOptions = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'API управления пользователями',
+            version: '1.0.0',
+            description: 'Простое API для управления пользователями',
+        },
+        servers: [
+            {
+                url: `http://localhost:${port}`,
+                description: 'Локальный сервер',
+            },
+        ],
+    },
+// Путь к файлам, в которых мы будем писать JSDoc-комментарии (наш текущий файл)
+apis: ['./app.js'],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// Подключаем Swagger UI по адресу /api-docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Product:
+ *       type: object
+ *       required:
+ *         - name
+ *         - category
+ *         - description
+ *         - price
+ *         - stock
+ *         - imgURL
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Уникальный идентификатор товара
+ *         name:
+ *           type: string
+ *           description: Название товара
+ *         category:
+ *           type: string
+ *           description: Категория товара
+ *         description:
+ *           type: string
+ *           description: Описание товара
+ *         price:
+ *           type: integer
+ *           description: Цена товара
+ *         stock:
+ *           type: integer
+ *           description: Количество товара на складе
+ *         imgURL:
+ *           type: string
+ *           description: Ссылка на картинку товара
+ *       example:
+ *         id: "KYdvf_3"
+ *         name: "Чашка"
+ *         category: "Посуда"
+ *         description: "Синяя чашка 250 мл"
+ *         price: 500
+ *         stock: 4
+ *         imgURL: "https://image_of_cup.jpg"
+ */
+
+
 // Middleware
 app.use(express.json());
 
@@ -78,11 +154,83 @@ function findProductOr404(id, res) {
     return product;
 }
 
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Получить список всех товаров
+ *     description: Возвращает массив всех товаров в каталоге
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Успешный запрос. Список товаров.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *               example:
+ *                 - id: "KYdvf_3"
+ *                   name: "Чашка"
+ *                   category: "Посуда"
+ *                   description: "Синяя чашка 250 мл"
+ *                   price: 500
+ *                   stock: 4
+ *                   imgURL: "https://image_of_cup.jpg"
+ *                 - id: "JHVds32"
+ *                   name: "Тарелка"
+ *                   category: "Посуда"
+ *                   description: "Белая тарелка 20 см"
+ *                   price: 300
+ *                   stock: 10
+ *                   imgURL: "https://image_of_plate.jpg"
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
 // GET /api/products - получение списка товаров
 app.get("/api/products", (req, res) => {
     res.json(products);
 });
 
+
+
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Получить товар по id
+ *     description: Возвращает информацию о конкретном товаре по его id
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: id товара
+ *         example: "KYdvf_3"
+ *     responses:
+ *       200:
+ *         description: Товар успешно найден
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       404:
+ *         description: Товар не найден
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Товар с id KYdvf_3 не найден"
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ */
 // GET /api/products/:id - получение товара по ID
 app.get("/api/products/:id", (req, res) => {
     const id = req.params.id;
@@ -91,6 +239,28 @@ app.get("/api/products/:id", (req, res) => {
     res.json(product);
 });
 
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Создает новый товар
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Product'
+ *     responses:
+ *       201:
+ *         description: Товар успешно создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Ошибка в теле запроса
+ */
 // POST /api/products - создание нового товара
 app.post("/api/products", (req, res) => {
     const { name, category, description, price, stock, imgURL } = req.body;
@@ -108,6 +278,10 @@ app.post("/api/products", (req, res) => {
     products.push(newProduct);
     res.status(201).json(newProduct);
 });
+
+
+
+
 
 // PATCH /api/products/:id - изменение товара
 app.patch("/api/products/:id", (req, res) => {
@@ -160,4 +334,6 @@ app.use((err, req, res, next) => {
 // Запуск сервера
 app.listen(port, () => {
     console.log(`Сервер запущен на http://localhost:${port}`);
+    console.log(`Swagger UI доступен по адресу http://localhost:${port}/api-docs`);
+
 });
