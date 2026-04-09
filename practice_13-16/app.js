@@ -1,4 +1,5 @@
-const socket = io('http://localhost:3001');
+const socket = io();
+
 
 const contentDiv = document.getElementById('app-content');
 const homeBtn = document.getElementById('home-btn');
@@ -29,7 +30,7 @@ async function subscribeToPush() {
             applicationServerKey:
                 urlBase64ToUint8Array('BCGk9IkTtZ5Zee73Zb8BMGJmVlclbzmPJrkomOD0hmI_1eTeuxwsWgKtdMFOH4WAYXUJWhfMb1lrSUVcCpP-QYk')
         });
-        await fetch('http://localhost:3001/subscribe', {
+        await fetch('/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(subscription)
@@ -46,7 +47,7 @@ async function unsubscribeFromPush() {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
-        await fetch('http://localhost:3001/unsubscribe', {
+        await fetch('/unsubscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ endpoint: subscription.endpoint })
@@ -96,21 +97,45 @@ function initNotes() {
     const input = document.getElementById('note-input');
     const list = document.getElementById('notes-list');
 
+    const reminderForm = document.getElementById('reminder-form');
+    const reminderText = document.getElementById('reminder-text');
+    const reminderTime = document.getElementById('reminder-time');
+
 
     function loadNotes() {
         const notes = JSON.parse(localStorage.getItem('notes') || '[]');
-        list.innerHTML = notes.map(note => `<li class="card" style="margin-bottom: 0.5rem; padding: 0.5rem;">${note}</li>`).join('');
+        // list.innerHTML = notes.map(note => `<li class="card" style="margin-bottom: 0.5rem; padding: 0.5rem;">${note}</li>`).join('');
+        list.innerHTML = notes.map(note => {
+            let reminderInfo = '';
+            if (note.reminder) {
+                const date = new Date(note.reminder);
+                reminderInfo = `<br><small>!!! Напоминание: ${date.toLocaleString()}</small>`;
+            }
+            return `<li class="card" style="margin-bottom: 0.5rem; padding: 0.5rem;">${note.text}${reminderInfo}</li>`;
+        });
     }
 
 
-    function addNote(text) {
+    
+
+    function addNote(text, reminderTimestamp = null) {
         const notes = JSON.parse(localStorage.getItem('notes') || '[]');
-        notes.push(text);
+        const newNote = { id: Date.now(), text, reminder: reminderTimestamp };
+
+
+        notes.push(newNote);
         localStorage.setItem('notes', JSON.stringify(notes));
         loadNotes();
 
-        socket.emit('newTask', { text, timestamp: Date.now() });
-
+        if (reminderTimestamp) {
+            socket.emit('newReminder', {
+                id: newNote.id,
+                text: text,
+                reminderTime: reminderTimestamp
+            });
+        } else {
+            socket.emit('newTask', { text, timestamp: Date.now() });
+        }
     }
 
 
@@ -122,6 +147,24 @@ function initNotes() {
             input.value = '';
         }
     });
+
+
+    reminderForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = reminderText.value.trim();
+        const datetime = reminderTime.value;
+
+        if (text && datetime) {
+            const timestamp = new Date(datetime).getTime();
+            if (timestamp > Date.now()) {
+                addNote(text, timestamp);
+                reminderText.value = '';
+                reminderTime.value = '';
+            } else {
+                alert('Дата напоминания должна быть в будущем')
+            }
+        }
+    })
 
 
     loadNotes();
