@@ -1,0 +1,17 @@
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.json({
+        server: process.env.SERVER_ID || 'unknown',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
+
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Users service running on port ${PORT}`);
+});
